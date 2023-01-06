@@ -40,7 +40,7 @@ async fn get_contract_instance() -> (MyContract, WalletUnlocked) {
 }
 
 #[tokio::test]
-async fn can_get_contract_id() {
+async fn my_test() {
     let (instance, wallet) = get_contract_instance().await;
 
     let btc_config = DeployTokenConfig {
