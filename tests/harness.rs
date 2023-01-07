@@ -61,31 +61,31 @@ async fn my_test() {
     let uni_instance = get_token_contract_instance(&wallet, &uni_config).await;
     let uni_contarct_id = ContractId::from(uni_instance.get_contract_id());
 
-    let config = MarketConfiguration {
+    let config = my_contract_mod::MarketConfiguration {
         foo: 100,
         bar: 200,
-        asset_configs: vec![
-            my_contract_mod::AssetConfig {
-                asset: ContractId::from_str(BASE_ASSET_ID.to_string().as_str())
-                    .expect("Cannot parse BASE_ASSET_ID to contract id"),
-                decimals: 9,
-                blablabla: 200000000000000,
-            },
-            my_contract_mod::AssetConfig {
-                asset: btc_contarct_id,
-                decimals: btc_config.decimals,
-                blablabla: 200000000000000,
-            },
-            my_contract_mod::AssetConfig {
-                asset: uni_contarct_id,
-                decimals: uni_config.decimals,
-                blablabla: 200000000000000,
-            },
-        ],
     };
+    let assets = vec![
+        my_contract_mod::AssetConfig {
+            asset: ContractId::from_str(BASE_ASSET_ID.to_string().as_str())
+                .expect("Cannot parse BASE_ASSET_ID to contract id"),
+            decimals: 9,
+            blablabla: 200000000000000,
+        },
+        my_contract_mod::AssetConfig {
+            asset: btc_contarct_id,
+            decimals: btc_config.decimals,
+            blablabla: 200000000000000,
+        },
+        my_contract_mod::AssetConfig {
+            asset: uni_contarct_id,
+            decimals: uni_config.decimals,
+            blablabla: 200000000000000,
+        },
+    ];
     let methods = instance.methods();
 
-    methods.initialize(config).call().await.unwrap();
+    methods.initialize(config, assets).call().await.unwrap();
 
     let res = methods
         .get_asset_config_by_asset_id(btc_contarct_id)

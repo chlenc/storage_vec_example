@@ -1,9 +1,10 @@
 contract;
+use std::storage::StorageVec;
+
 
 pub struct MarketConfiguration {
     foo: u64,
     bar: u64,
-    asset_configs: Vec<AssetConfig>,
 }
 
 pub struct AssetConfig {
@@ -13,8 +14,8 @@ pub struct AssetConfig {
 }
 
 abi MyContract {
-    #[storage(write)]
-    fn initialize(config: MarketConfiguration);
+    #[storage(read, write)]
+    fn initialize(config: MarketConfiguration, asset_configs: Vec<AssetConfig>);
 
     #[storage(read)]
     fn get_asset_config_by_asset_id(asset: ContractId) -> AssetConfig;
@@ -22,6 +23,7 @@ abi MyContract {
 
 storage {
     config: Option<MarketConfiguration> = Option::None,
+    asset_configs: StorageVec<AssetConfig>  = StorageVec {},
 }
 
 #[storage(read)]
@@ -37,8 +39,8 @@ fn get_asset_config_by_asset_id_internal(asset: ContractId) -> AssetConfig {
     let mut out: Option<AssetConfig> = Option::None;
     let config = get_config();
     let mut i = 0;
-    while i < config.asset_configs.len() {
-        let asset_config = config.asset_configs.get(i).unwrap();
+    while i < storage.asset_configs.len() {
+        let asset_config = storage.asset_configs.get(i).unwrap();
         if asset_config.asset == asset {
             out = Option::Some(asset_config);
             break;
@@ -52,9 +54,14 @@ fn get_asset_config_by_asset_id_internal(asset: ContractId) -> AssetConfig {
 }
 
 impl MyContract for Contract {
-    #[storage(write)]
-    fn initialize(config: MarketConfiguration) {
+    #[storage(read, write)]
+    fn initialize(config: MarketConfiguration, asset_configs: Vec<AssetConfig>) {
         storage.config = Option::Some(config);
+        let mut i = 0;
+        while i < asset_configs.len() {
+            storage.asset_configs.push(asset_configs.get(i).unwrap());
+            i += 1;
+        }
     }
 
     #[storage(read)]
