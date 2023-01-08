@@ -1,16 +1,36 @@
 contract;
-use std::storage::StorageVec;
+use std::{
+    auth::{
+        AuthError,
+        msg_sender,
+    },
+    call_frames::{
+        contract_id,
+        msg_asset_id,
+    },
+    context::{
+        balance_of,
+        msg_amount,
+    },
+    logging::log,
+    storage::StorageVec,
+    token::{
+        mint_to_address,
+        transfer_to_address,
+    },
+};
 
+enum Error {
+    InvalidPayment: (),
+}
 
 pub struct MarketConfiguration {
-    foo: u64,
-    bar: u64,
+    base_token: ContractId,
 }
 
 pub struct AssetConfig {
     asset: ContractId,
     decimals: u8,
-    blablabla: u64,
 }
 
 abi MyContract {
@@ -19,11 +39,14 @@ abi MyContract {
 
     #[storage(read)]
     fn get_asset_config_by_asset_id(asset: ContractId) -> AssetConfig;
+
+    #[storage(read)]
+    fn supply_base();
 }
 
 storage {
     config: Option<MarketConfiguration> = Option::None,
-    asset_configs: StorageVec<AssetConfig>  = StorageVec {},
+    asset_configs: StorageVec<AssetConfig> = StorageVec {},
 }
 
 #[storage(read)]
@@ -53,6 +76,15 @@ fn get_asset_config_by_asset_id_internal(asset: ContractId) -> AssetConfig {
     }
 }
 
+pub fn get_caller() -> Address {
+    let sender: Result<Identity, AuthError> = msg_sender();
+    if let Identity::Address(address) = sender.unwrap() {
+        address
+    } else {
+        revert(0);
+    }
+}
+
 impl MyContract for Contract {
     #[storage(read, write)]
     fn initialize(config: MarketConfiguration, asset_configs: Vec<AssetConfig>) {
@@ -68,4 +100,17 @@ impl MyContract for Contract {
     fn get_asset_config_by_asset_id(asset: ContractId) -> AssetConfig {
         get_asset_config_by_asset_id_internal(asset)
     }
+
+    #[storage(read)]
+    fn supply_base() {
+        let caller = get_caller();
+        let config = get_config();
+        let amount = msg_amount();
+
+        require(amount > 0, Error::InvalidPayment);
+        require(msg_asset_id() == config.base_token, Error::InvalidPayment);
+
+        mint_to_address(amount, caller);
+    }
+
 }
