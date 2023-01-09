@@ -1,4 +1,4 @@
-use std::{str::FromStr};
+use std::str::FromStr;
 
 use fuels::{prelude::*, tx::ContractId};
 use rand::prelude::Rng;
@@ -10,10 +10,10 @@ abigen!(
     "tests/artefacts/token/token_contract-abi.json"
 );
 
-async fn create_wallet() -> WalletUnlocked {
-    let mut wallets = launch_custom_provider_and_get_wallets(
+async fn get_contract_instance() -> (MyContract, Vec<WalletUnlocked>) {
+    let wallets = launch_custom_provider_and_get_wallets(
         WalletsConfig::new(
-            Some(1),             /* Single wallet */
+            Some(2),             /* Single wallet */
             Some(1),             /* Single coin (UTXO) */
             Some(1_000_000_000), /* Amount per coin */
         ),
@@ -21,15 +21,10 @@ async fn create_wallet() -> WalletUnlocked {
         None,
     )
     .await;
-    wallets.pop().unwrap()
-}
-
-async fn get_contract_instance() -> (MyContract, WalletUnlocked) {
-    let wallet = create_wallet().await;
 
     let id = Contract::deploy(
         "./out/debug/storage_vec_example.bin",
-        &wallet,
+        &wallets[0],
         TxParameters::default(),
         StorageConfiguration::with_storage_path(Some(
             "./out/debug/storage_vec_example-storage_slots.json".to_string(),
@@ -38,20 +33,22 @@ async fn get_contract_instance() -> (MyContract, WalletUnlocked) {
     .await
     .unwrap();
 
-    let instance = MyContract::new(id.clone(), wallet.clone());
+    let instance = MyContract::new(id.clone(), wallets[0].clone());
 
-    (instance, wallet)
+    (instance, wallets)
 }
 
 #[tokio::test]
 async fn my_test() {
-    let (instance, wallet) = get_contract_instance().await;
+    let (instance, wallets) = get_contract_instance().await;
+    let wallet = wallets[0].clone();
+    let empty_wallet = wallets[1].clone();
 
     let usdc_config = DeployTokenConfig {
         name: String::from("USD Coin"),
         symbol: String::from("USDC"),
         decimals: 6,
-        mint_amount: 1,
+        mint_amount: 10000,
     };
     let usdc_instance = get_token_contract_instance(&wallet, &usdc_config).await;
     let usdc_contarct_id = ContractId::from(usdc_instance.get_contract_id());
@@ -94,12 +91,28 @@ async fn my_test() {
         .unwrap()
         .value;
 
-    let wallet2 = create_wallet().await;
+    let balances = wallet.get_balances().await.unwrap();
+    println!("{:#?}\n", balances);
+
+    // usdc_instance
+    //     // .with_wallet(empty_wallet.clone())
+    //     // .as_ref()
+    //     // .unwrap()
+    //     .methods()
+    //     .mint()
+    //     .append_variable_outputs(1)
+    //     .call()
+    //     .await
+    //     .unwrap();
+
+    let balances = wallet.get_balances().await.unwrap();
+    println!("{:#?}\n", balances);
+
     let usdc_asset_id = AssetId::from(*usdc_instance.get_contract_id().hash());
     let params = CallParameters::new(Some(1_000_000), Some(usdc_asset_id), None);
     let _res = instance
-        .with_wallet(wallet2.clone())
-        .unwrap()
+        // .with_wallet(empty_wallet.clone())
+        // .unwrap()
         .methods()
         .supply_base()
         .call_params(params)
@@ -109,6 +122,9 @@ async fn my_test() {
         .call()
         .await
         .unwrap();
+
+    let balances = wallet.get_balances().await.unwrap();
+    println!("{:#?}\n", balances);
 }
 
 pub struct DeployTokenConfig {
@@ -156,7 +172,7 @@ pub async fn get_token_contract_instance(
         .initialize(config, mint_amount, Address::from(wallet.address()))
         .call()
         .await;
-    let _res = methods.mint().append_variable_outputs(1).call().await;
+    // let _res = methods.mint().append_variable_outputs(1).call().await;
 
     instance
 }
